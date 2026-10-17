@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+require '../middleware/admin.php'; 
 require '../config/koneksi.php';
 
 $json = file_get_contents('php://input');
@@ -17,7 +18,12 @@ try {
     $stmtCek->execute([$id_barang]);
     $barang = $stmtCek->fetch();
 
-    if ($barang && $barang['foto']) {
+    if (!$barang) {
+        echo json_encode(["status" => "error", "message" => "Barang tidak ditemukan!"]);
+        exit;
+    }
+
+    if ($barang['foto']) {
         $pathFoto = '../../assets/uploads/' . $barang['foto'];
         if (file_exists($pathFoto)) {
             unlink($pathFoto);
@@ -27,8 +33,8 @@ try {
     $stmtDelete = $pdo->prepare("DELETE FROM barang WHERE id_barang = ?");
     $stmtDelete->execute([$id_barang]);
 
-    echo json_encode(["status" => "sukses", "message" => "Barang dan fotonya berhasil dihapus dari sistem!"]);
+    echo json_encode(["status" => "sukses", "message" => "Barang dan fotonya berhasil dihapus!"]);
 } catch (PDOException $e) {
-    // Menangani error jika barang tidak bisa dihapus karena sedang berelasi dengan tabel klaim
-    echo json_encode(["status" => "error", "message" => "Gagal menghapus data: " . $e->getMessage()]);
+    error_log("[TITIPIN] barang/delete error: " . $e->getMessage());
+    echo json_encode(["status" => "error", "message" => "Gagal menghapus data. Mungkin barang sedang terkait dengan klaim aktif."]);
 }
