@@ -1,12 +1,13 @@
 <?php
 header('Content-Type: application/json');
+require '../middleware/admin.php'; // Hanya Admin
 require '../config/koneksi.php';
 
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
 $id_kerusakan    = $data['id_kerusakan'] ?? null;
-$status          = $data['status'] ?? ''; 
+$status          = $data['status'] ?? '';
 $catatan_teknisi = $data['catatan_teknisi'] ?? '';
 
 if (!$id_kerusakan || !$status) {
@@ -16,11 +17,11 @@ if (!$id_kerusakan || !$status) {
 
 try {
     $query = "UPDATE kerusakan_fasilitas SET status = ?, catatan_teknisi = ? WHERE id_kerusakan = ?";
-    $stmt = $pdo->prepare($query);
+    $stmt  = $pdo->prepare($query);
     $stmt->execute([$status, $catatan_teknisi, $id_kerusakan]);
-    
+
     echo json_encode(["status" => "sukses", "message" => "Status perbaikan berhasil diubah menjadi " . $status]);
 } catch (PDOException $e) {
-    echo json_encode(["status" => "error", "message" => "Gagal update status perbaikan: " . $e->getMessage()]);
+    error_log("[TITIPIN] fasilitas/update_status error: " . $e->getMessage());
+    echo json_encode(["status" => "error", "message" => "Gagal update status perbaikan."]);
 }
-?>
