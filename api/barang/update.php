@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+require '../middleware/admin.php'; // Hanya Admin
 require '../config/koneksi.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -22,6 +23,32 @@ if (!$id_barang) {
 
 try {
     if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
+        $file     = $_FILES['foto'];
+        $ekstensi = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+        $allowed_ext  = ['jpg', 'jpeg', 'png'];
+        $allowed_mime = ['image/jpeg', 'image/png'];
+        $max_size     = 2 * 1024 * 1024; // Maks 2MB bisa nambah
+
+        if ($file['size'] > $max_size) {
+            echo json_encode(["status" => "error", "message" => "Ukuran foto maksimal 2MB!"]);
+            exit;
+        }
+
+        if (!in_array($ekstensi, $allowed_ext)) {
+            echo json_encode(["status" => "error", "message" => "Format foto tidak valid! Gunakan JPG atau PNG."]);
+            exit;
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime  = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($mime, $allowed_mime)) {
+            echo json_encode(["status" => "error", "message" => "Tipe file tidak diizinkan!"]);
+            exit;
+        }
+
         $stmtCek = $pdo->prepare("SELECT foto FROM barang WHERE id_barang = ?");
         $stmtCek->execute([$id_barang]);
         $barangLama = $stmtCek->fetch();
@@ -29,27 +56,29 @@ try {
         if ($barangLama && $barangLama['foto']) {
             $pathLama = '../../assets/uploads/' . $barangLama['foto'];
             if (file_exists($pathLama)) {
-                unlink($pathLama); // Hapus foto lama
+                unlink($pathLama);
             }
         }
 
-        $tmp_name = $_FILES['foto']['tmp_name'];
-        $ekstensi = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
         $nama_file_foto = time() . '_' . uniqid() . '.' . $ekstensi;
+        $folder_simpan  = '../../assets/uploads/' . $nama_file_foto;
 
-        $folder_simpan = '../../assets/uploads/' . $nama_file_foto;
-        move_uploaded_file($tmp_name, $folder_simpan);
+        if (!move_uploaded_file($file['tmp_name'], $folder_simpan)) {
+            echo json_encode(["status" => "error", "message" => "Gagal menyimpan foto baru. Coba lagi."]);
+            exit;
+        }
 
         $query = "UPDATE barang SET nama_barang = ?, kategori_id = ?, lokasi_id = ?, jenis = ?, deskripsi = ?, status = ?, foto = ? WHERE id_barang = ?";
-        $stmt = $pdo->prepare($query);
+        $stmt  = $pdo->prepare($query);
         $stmt->execute([$nama_barang, $kategori_id, $lokasi_id, $jenis, $deskripsi, $status, $nama_file_foto, $id_barang]);
     } else {
         $query = "UPDATE barang SET nama_barang = ?, kategori_id = ?, lokasi_id = ?, jenis = ?, deskripsi = ?, status = ? WHERE id_barang = ?";
-        $stmt = $pdo->prepare($query);
+        $stmt  = $pdo->prepare($query);
         $stmt->execute([$nama_barang, $kategori_id, $lokasi_id, $jenis, $deskripsi, $status, $id_barang]);
     }
 
     echo json_encode(["status" => "sukses", "message" => "Data barang berhasil diperbarui!"]);
 } catch (PDOException $e) {
-    echo json_encode(["status" => "error", "message" => "Gagal update data: " . $e->getMessage()]);
+    error_log("[TITIPIN] barang/update error: " . $e->getMessage());
+    echo json_encode(["status" => "error", "message" => "Gagal update data. Hubungi administrator."]);
 }
