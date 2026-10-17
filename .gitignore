@@ -1,0 +1,6 @@
+# Jangan push credential database ke repository
+.env
+
+# Jangan push file upload user ke repository
+/assets/uploads/*
+!/assets/uploads/.htaccess
