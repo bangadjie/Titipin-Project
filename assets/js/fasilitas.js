@@ -1,7 +1,5 @@
-// Fungsi mengirim laporan kerusakan (ada file foto)
 async function laporFasilitas(event) {
   event.preventDefault();
-
   const formElemen = document.getElementById("formLaporFasilitas");
   const formData = new FormData(formElemen);
 
@@ -10,13 +8,12 @@ async function laporFasilitas(event) {
       method: "POST",
       body: formData,
     });
-
     const hasil = await respons.json();
 
     if (hasil.status === "sukses") {
       alert("Berhasil: " + hasil.message);
       formElemen.reset();
-      ambilDataFasilitas(); // Refresh tabel
+      ambilDataFasilitas();
     } else {
       alert("Gagal: " + hasil.message);
     }
@@ -25,15 +22,14 @@ async function laporFasilitas(event) {
   }
 }
 
-// Fungsi mengambil daftar laporan kerusakan
 async function ambilDataFasilitas() {
   try {
     const respons = await fetch("../api/fasilitas/read.php");
     const hasil = await respons.json();
-
     if (hasil.status === "sukses") {
       console.log("Data Fasilitas:", hasil.data);
-      // Nanti tim UI/UX tinggal me-looping hasil.data ke dalam tabel HTML
+      // Nanti data dilooping
+      // ke tabel HTML
     } else {
       console.error("Gagal ambil data:", hasil.message);
     }
@@ -42,28 +38,63 @@ async function ambilDataFasilitas() {
   }
 }
 
-// Fungsi untuk teknisi/admin memperbarui status perbaikan
-async function updateStatusFasilitas(id_kerusakan, status, catatan_teknisi) {
-  const payload = {
-    id_kerusakan: id_kerusakan,
-    status: status,
-    catatan_teknisi: catatan_teknisi,
-  };
+async function updateFasilitas(dataFasilitas) {
+  try {
+    const formData = new FormData();
+
+    formData.append("id_kerusakan", dataFasilitas.id_kerusakan);
+    formData.append("nama_fasilitas", dataFasilitas.nama_fasilitas);
+    formData.append("kategori_id", dataFasilitas.kategori_id);
+    formData.append("lokasi_id", dataFasilitas.lokasi_id);
+    formData.append("deskripsi_kerusakan", dataFasilitas.eskripsi_kerusakan);
+    formData.append("status", dataFasilitas.status);
+    formData.append("catatan_teknisi", dataFasilitas.catatan_teknisi);
+
+    if (dataFasilitas.foto) {
+      formData.append("foto", dataFasilitas.foto);
+    }
+    const respons = await fetch("../api/fasilitas/update.php", {
+      method: "POST",
+      body: formData,
+    });
+    const hasil = await respons.json();
+
+    if (hasil.status === "sukses") {
+      alert("Data fasilitas berhasil diperbarui!");
+
+      ambilDataFasilitas();
+    } else {
+      alert("Gagal: " + hasil.message);
+    }
+  } catch (error) {
+    alert("Kesalahan jaringan: " + error);
+  }
+}
+
+async function hapusFasilitas(id_kerusakan) {
+  const konfirmasi = confirm(
+    "Apakah kamu yakin ingin menghapus laporan fasilitas ini?",
+  );
+  if (!konfirmasi) {
+    return;
+  }
 
   try {
-    const respons = await fetch("../api/fasilitas/update_status.php", {
+    const respons = await fetch("../api/fasilitas/delete.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        id_kerusakan: id_kerusakan,
+      }),
     });
-
     const hasil = await respons.json();
 
     if (hasil.status === "sukses") {
-      alert("Status diperbarui!");
-      ambilDataFasilitas(); // Refresh tabel
+      alert("Data fasilitas berhasil dihapus!");
+
+      ambilDataFasilitas();
     } else {
       alert("Gagal: " + hasil.message);
     }
