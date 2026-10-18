@@ -43,31 +43,54 @@ async function ambilDataKlaim() {
 }
 
 // Fungsi admin menyetujui atau menolak klaim
-async function updateStatusKlaim(id_klaim, status_klaim, admin_id) {
-  const payload = {
-    id_klaim: id_klaim,
-    status_klaim: status_klaim,
-    admin_id: admin_id,
-  };
-
+async function updateKlaim(dataKlaim) {
   try {
-    const respons = await fetch("../api/klaim/update_status.php", {
+    const respons = await fetch("../api/klaim/update.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(dataKlaim),
     });
-
     const hasil = await respons.json();
 
     if (hasil.status === "sukses") {
-      alert("Status klaim menjadi: " + status_klaim);
+      alert("Data klaim berhasil diperbarui!");
       ambilDataKlaim();
     } else {
       alert("Gagal: " + hasil.message);
     }
   } catch (error) {
     alert("Kesalahan jaringan: " + error);
+  }
+}
+
+async function hapusKlaim(id_klaim) {
+  const konfirmasi = confirm("Apakah kamu yakin ingin menghapus klaim ini?");
+  if (!konfirmasi) {
+    return;
+  }
+
+  try {
+    const respons = await fetch("../api/klaim/delete.php", {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json",
+      },
+      body: JSON.stringify({
+        id_klaim: id_klaim,
+      }),
+    });
+
+    const hasil = await respons.json();
+
+    if (hasil.status === "sukses") {
+      alert("Data Klaim berhasil dihapus!");
+      ambilDataKlaim();
+    } else {
+      alert("gagal: " + hasil.message);
+    }
+  } catch (error) {
+    alert("Kesalahan Jaringan: " + error);
   }
 }
