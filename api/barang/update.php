@@ -21,6 +21,16 @@ if (!$id_barang) {
     exit;
 }
 
+if (!in_array($jenis, ['Lost', 'Found'], true)) {
+    echo json_encode(["status" => "error", "message" => "Jenis barang harus Lost atau Found!"]);
+    exit;
+}
+
+if (!in_array($status, ['Menunggu Verifikasi', 'Tersedia', 'Selesai'], true)) {
+    echo json_encode(["status" => "error", "message" => "Status barang tidak valid!"]);
+    exit;
+}
+
 try {
     if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
         $file     = $_FILES['foto'];
@@ -42,7 +52,6 @@ try {
 
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mime  = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
 
         if (!in_array($mime, $allowed_mime)) {
             echo json_encode(["status" => "error", "message" => "Tipe file tidak diizinkan!"]);
