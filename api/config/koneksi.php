@@ -4,7 +4,7 @@ $env_file = __DIR__ . '/../../.env';
 if (file_exists($env_file)) {
     $lines = file($env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
-        // Skip baris komentar
+        
         if (strpos(trim($line), '#') === 0) continue;
         if (strpos($line, '=') !== false) {
             [$key, $value] = explode('=', $line, 2);
@@ -16,7 +16,7 @@ if (file_exists($env_file)) {
 $host = $_ENV['DB_HOST'] ?? 'localhost';
 $db   = $_ENV['DB_NAME'] ?? 'titipin';
 $user = $_ENV['DB_USER'] ?? 'postgres';
-$pass = $_ENV['DB_PASS'] ?? '';
+$pass = $_ENV['DB_PASS'] ?? '1234';
 $port = $_ENV['DB_PORT'] ?? '5432';
 
 try {
