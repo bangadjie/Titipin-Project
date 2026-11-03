@@ -109,8 +109,6 @@ try {
             $file['tmp_name']
         );
 
-        finfo_close($finfo);
-
         if (!in_array($mime, $allowed_mime)) {
 
             echo json_encode([
