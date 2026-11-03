@@ -30,7 +30,6 @@ if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
     $allowed_mime = ['image/jpeg', 'image/png'];
     $max_size     = 2 * 1024 * 1024; // Maks 2MB
 
-    // Cek ukuran
     if ($file['size'] > $max_size) {
         echo json_encode(["status" => "error", "message" => "Ukuran foto maksimal 2MB!"]);
         exit;
@@ -41,11 +40,8 @@ if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
         echo json_encode(["status" => "error", "message" => "Format foto tidak valid! Gunakan JPG atau PNG."]);
         exit;
     }
-
-    // Cek MIME type sungguhan
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime  = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
 
     if (!in_array($mime, $allowed_mime)) {
         echo json_encode(["status" => "error", "message" => "Tipe file tidak diizinkan!"]);
