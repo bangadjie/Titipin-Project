@@ -14,11 +14,16 @@ $lokasi_id   = $_POST['lokasi_id'] ?? null;
 $jenis       = $_POST['jenis'] ?? '';
 $deskripsi   = $_POST['deskripsi'] ?? '';
 $tanggal     = date('Y-m-d');
-$status      = 'Dilaporkan';
+$status      = 'Menunggu Verifikasi';
 $pelapor_id  = $_SESSION['user_nim'];
 
 if (!$nama_barang || !$jenis) {
     echo json_encode(["status" => "error", "message" => "Nama barang dan jenis wajib diisi!"]);
+    exit;
+}
+
+if (!in_array($jenis, ['Lost', 'Found'], true)) {
+    echo json_encode(["status" => "error", "message" => "Jenis barang harus Lost atau Found!"]);
     exit;
 }
 
@@ -43,7 +48,6 @@ if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime  = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
 
     if (!in_array($mime, $allowed_mime)) {
         echo json_encode(["status" => "error", "message" => "Tipe file tidak diizinkan!"]);
