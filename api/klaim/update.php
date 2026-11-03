@@ -2,112 +2,110 @@
 header('Content-Type: application/json');
 require '../middleware/admin.php';
 require '../config/koneksi.php';
+require '../config/klaim.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Gunakan method POST!"
-    ]);
+    echo json_encode(["status" => "error", "message" => "Gunakan method POST!"]);
     exit;
 }
 
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
-
-$id_klaim              = $data['id_klaim'] ?? null;
-$kode_tiket            = $data['kode_tiket'] ?? null;
-$item_id               = $data['item_id'] ?? null;
-$claimer_id            = $data['claimer_id'] ?? null;
-$bukti_kepemilikan     = $data['bukti_kepemilikan'] ?? null;
-$bukti_serah_terima    = $data['bukti_serah_terima'] ?? null;
-$status_klaim           = $data['status_klaim'] ?? null;
-$admin_id              = $data['admin_id'] ?? null;
-
-if (!$id_klaim) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "ID klaim tidak ditemukan!"
-    ]);
-    exit;
-}
-
-if (
-    !$kode_tiket ||
-    !$item_id ||
-    !$claimer_id ||
-    !$status_klaim
-) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Data klaim belum lengkap!"
-    ]);
-    exit;
-}
-
-try {
-
-    $pdo->beginTransaction();
-
-    /*
-     * Update seluruh data pada tabel klaim
-     */
-    $query = "
-        UPDATE klaim SET
-            kode_tiket = ?,
-            item_id = ?,
-            claimer_id = ?,
-            bukti_kepemilikan = ?,
-            bukti_serah_terima = ?,
-            status_klaim = ?,
-            admin_id = ?
-        WHERE id_klaim = ?
-    ";
-
-    $stmt = $pdo->prepare($query);
-
-    $stmt->execute([
-        $kode_tiket,
-        $item_id,
-        $claimer_id,
-        $bukti_kepemilikan,
-        $bukti_serah_terima,
-        $status_klaim,
-        $admin_id,
-        $id_klaim
-    ]);
-
-    if (
-        $status_klaim === 'Disetujui' ||
-        $status_klaim === 'Selesai'
-    ) {
-
-        $stmtBarang = $pdo->prepare("
-            UPDATE barang
-            SET status = 'Diklaim'
-            WHERE id_barang = ?
-        ");
-
-        $stmtBarang->execute([$item_id]);
+$data = $_POST;
+if (empty($data)) {
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    if (!is_array($data)) {
+        $data = [];
     }
+}
 
-    $pdo->commit();
+$id_klaim     = filter_var($data['id_klaim'] ?? null, FILTER_VALIDATE_INT);
+$status_klaim = trim((string) ($data['status_klaim'] ?? ''));
+$alasan       = trim((string) ($data['alasan_penolakan'] ?? ''));
 
+if (!$id_klaim || $id_klaim < 1) {
+    echo json_encode(["status" => "error", "message" => "ID klaim tidak ditemukan!"]);
+    exit;
+}
+
+if ($status_klaim === '') {
+    echo json_encode(["status" => "error", "message" => "Status klaim wajib diisi!"]);
+    exit;
+}
+
+if ($status_klaim === 'Disetujui') {
     echo json_encode([
-        "status" => "sukses",
-        "message" => "Data klaim berhasil diperbarui!"
+        "status"  => "error",
+        "message" => "Persetujuan klaim harus lewat endpoint klaim/redeem.php dengan kode redeem."
     ]);
-} catch (PDOException $e) {
+    exit;
+}
 
+if ($status_klaim !== 'Ditolak') {
+    echo json_encode(["status" => "error", "message" => "Status klaim hanya boleh Ditolak di endpoint ini!"]);
+    exit;
+}
+
+function fail_update_claim(PDO $pdo, string $message): void
+{
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
-    error_log(
-        "[TITIPIN] klaim/update error: " . $e->getMessage()
-    );
+    echo json_encode(["status" => "error", "message" => $message]);
+    exit;
+}
+
+try {
+    expire_claims($pdo);
+
+    $pdo->beginTransaction();
+
+    $stmt = $pdo->prepare("
+        SELECT id_klaim, item_id, status_klaim
+        FROM klaim
+        WHERE id_klaim = ?
+        FOR UPDATE
+    ");
+    $stmt->execute([$id_klaim]);
+    $klaim = $stmt->fetch();
+
+    if (!$klaim) {
+        fail_update_claim($pdo, "Klaim tidak ditemukan!");
+    }
+
+    if ($klaim['status_klaim'] === 'Disetujui') {
+        fail_update_claim($pdo, "Klaim yang sudah disetujui tidak dapat ditolak!");
+    }
+
+    if ($alasan === '') {
+        $alasan = 'Ditolak oleh admin.';
+    }
+
+    $stmtUpdate = $pdo->prepare("
+        UPDATE klaim
+        SET status_klaim = 'Ditolak',
+            alasan_penolakan = ?
+        WHERE id_klaim = ?
+    ");
+    $stmtUpdate->execute([$alasan, $id_klaim]);
+
+    $pdo->commit();
 
     echo json_encode([
-        "status" => "error",
-        "message" => "Gagal memperbarui data klaim."
+        "status"  => "sukses",
+        "message" => "Klaim berhasil ditolak.",
+        "data"    => [
+            "id_klaim"         => (int) $id_klaim,
+            "status_klaim"     => "Ditolak",
+            "alasan_penolakan" => $alasan
+        ]
     ]);
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    error_log("[TITIPIN] klaim/update error: " . $e->getMessage());
+    echo json_encode(["status" => "error", "message" => "Gagal memperbarui data klaim."]);
 }
+?>
